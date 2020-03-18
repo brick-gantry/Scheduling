@@ -1,6 +1,5 @@
-
 import pytest
-import src.schedule_parsing as parsing
+import src.tasks.schedule_parsing.parsing as parsing
 
 
 @pytest.mark.parametrize(['value', 'result'],
@@ -148,7 +147,7 @@ def test_iterate_times(range, interval, result):
                           ('tu - sa', [{'weekday': _} for _ in [1, 2, 3, 4, 5]]),
                           ('we', [{'weekday': _} for _ in [2]]),
                           ('day of month 1 through 5', [{'dom': _} for _ in [1, 2, 3, 4, 5]]),
-                          ('day of month 28 - 3', [{'dom': _} for _ in [*range(28, parsing.end_of_month()), 1, 2, 3]])
+                          ('dom 28 - 3', [{'dom': _} for _ in [*range(28, parsing.end_of_month()), 1, 2, 3]])
                           ])
 def test_parse_day_phrase(phrase, result):
     assert list(parsing.parse_day_phrase(phrase)) == result
@@ -177,8 +176,16 @@ def test_parse_time_phrase(phrase, result):
                                                            {'weekday': 4, 'hour': 21, 'minute': 0},
                                                            {'weekday': 5, 'hour': 18, 'minute': 0},
                                                            {'weekday': 5, 'hour': 21, 'minute': 0}
-                                                           ])
+                                                           ]),
+                          ('every 3 hours', [{'hour': 0, 'minute': 0},
+                                             {'hour': 3, 'minute': 0},
+                                             {'hour': 6, 'minute': 0},
+                                             {'hour': 9, 'minute': 0},
+                                             {'hour': 12, 'minute': 0},
+                                             {'hour': 15, 'minute': 0},
+                                             {'hour': 18, 'minute': 0},
+                                             {'hour': 21, 'minute': 0}])
                           ])
 def test_parse_full_phrase(phrase, result):
-    assert list(parsing.parse_full_phrase(phrase)) == result
+    assert list(parsing.parse_complex_phrase(phrase)) == result
 

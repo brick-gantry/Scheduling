@@ -25,22 +25,21 @@ def parse_range(value: str) -> Dict[str, Any]:
 def parse_interval(value: str) -> Dict[str, Any]:
     result = re.match(r"\s*every\s+(?:(?P<interval>\d+)\s*)?(?:(?P<interval_type>\w+)\s*)?", value)
     if result:
-        dict = result.groupdict()
-        return {'interval': int(dict['interval']) if dict['interval'] else dict['interval'],
-                'interval_type': dict.get('interval_type'),
+        dict_ = result.groupdict()
+        return {'interval': int(dict_['interval']) if dict_['interval'] else dict_['interval'],
+                'interval_type': dict_.get('interval_type'),
                 'len': len(result[0])}
 
 
 def parse_phrase(value: str, iterate: Callable, parse: Callable):
-    # iterate(range, interval)
-    range = parse_range(value)
-    if range:
-        interval = parse_interval(value[range['len']:])
-        return iterate(range, interval)
+    range_ = parse_range(value)
+    if range_:
+        interval = parse_interval(value[range_['len']:])
+        return iterate(range_, interval)
     interval = parse_interval(value)
     if interval:
-        range = parse_range(value[interval['len']:])
-        return iterate(range, interval)
+        range_ = parse_range(value[interval['len']:])
+        return iterate(range_, interval)
     return [parse(d) for d in parse_list(value)['list']]
 
 
@@ -53,14 +52,14 @@ def parse_day(value: str) -> int:
 def parse_time(value: str) -> Dict[str, int]:
     result = re.match(r"\s*(?P<hour>\d{1,2})\s*:\s*(?P<minute>\d{1,2})\s*(?P<ampm>[a|p]m)?", value)
     if result:
-        dict = result.groupdict()
-        hour = int(dict['hour'])
-        minute = int(dict['minute']) if 'minute' in dict else 0
-        second = 0  # todo add seconds parsing?
-        if dict['ampm']:
+        dict_ = result.groupdict()
+        hour = int(dict_['hour'])
+        minute = int(dict_['minute']) if 'minute' in dict_ else 0
+        second = 0  # todo add seconds schedule_parsing?
+        if dict_['ampm']:
             hour += \
-                12 if dict['ampm'][0] == 'p' and hour != 12 else \
-                -12 if dict['ampm'][0] == 'a' and hour == 12 else \
+                12 if dict_['ampm'][0] == 'p' and hour != 12 else \
+                -12 if dict_['ampm'][0] == 'a' and hour == 12 else \
                 0
         return {'hour': hour, 'minute': minute}
 
@@ -75,8 +74,8 @@ def iterate_days(range_, interval) -> Iterable[int]:
 
 
 def iterate_times(range_, interval) -> Iterable[Dict[str, Any]]:
-    start = parse_time(range_['start'])
-    end = parse_time(range_['end'])
+    start = parse_time(range_['start']) if range_ else {'hour': 0, 'minute': 0}
+    end = parse_time(range_['end']) if range_ else {'hour': 23, 'minute': 59}
     hour_delta = 0
     minute_delta = 0
     if end['hour'] < start['hour']:  # todo minutes?
@@ -102,7 +101,7 @@ def end_of_month():
 
 
 def parse_day_phrase(phrase) -> Iterable[Dict[str, Any]]:
-    match = re.match(r'\s*day\s+of\s+month\s+(?P<start>\d+)\s+(?:to|through|-)\s+(?P<end>\d+)', phrase)
+    match = re.match(r'\s*(?:day\s+of\s+month|dom)\s+(?P<start>\d+)\s+(?:to|through|-)\s+(?P<end>\d+)', phrase)
     if match:
         start = int(match['start'])
         end = int(match['end'])
@@ -112,10 +111,10 @@ def parse_day_phrase(phrase) -> Iterable[Dict[str, Any]]:
     match = re.match(r'\s*(?:every\s*days?|daily)\s*', phrase)
     if match:
         return [{'weekday': _} for _ in range(7)]
-    match = re.match('\s*week\s*days?\s*', phrase)
+    match = re.match(r'\s*week\s*days?\s*', phrase)
     if match:
         return [{'weekday': _} for _ in range(1, 6)]
-    match = re.match('\s*week\s*ends?\s*', phrase)
+    match = re.match(r'\s*week\s*ends?\s*', phrase)
     if match:
         return [{'weekday': _} for _ in (0, 6)]
     return [{'weekday': _} for _ in parse_phrase(phrase, iterate_days, parse_day)]
@@ -125,10 +124,13 @@ def parse_time_phrase(phrase):
     return parse_phrase(phrase, iterate_times, parse_time)
 
 
-def parse_full_phrase(phrase):
+def parse_complex_phrase(phrase):
     result = re.match(r'(?P<day_phrase>.+?)\s*(?:at|@)\s*(?P<time_phrase>.+)', phrase)
     if result:
         return [{**dp, **tp}
                 for dp, tp
                 in product(parse_day_phrase(result['day_phrase']),
                            parse_time_phrase(result['time_phrase']))]
+    result = parse_time_phrase(phrase)
+    if result:
+        return result
