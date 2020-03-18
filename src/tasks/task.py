@@ -13,6 +13,7 @@ class Task:
 
     def refresh_schedule(self):
         self._upcoming_schedule_times: Iterable[datetime] = parse_schedule(self.schedule_phrase)
+        return self._upcoming_schedule_times
 
     def execute(self):
         execute_task(self.task_phrase)
