@@ -1,19 +1,18 @@
 from datetime import datetime
-from typing import Callable, Iterable, Tuple
+from typing import Callable, Dict, Iterable, Tuple
 
 from src.tasks.task import Task
-from src.tasks.task_persistence import TaskPersistence
 
 
-class TaskScheduler(TaskPersistence):
+class TaskScheduler:
     def __init(self):
-        super().__init__()
+        self._tasks: Dict[int, Task] = {t.idx: t for t in Task.read_many()}
         self._scheduled_tasks: Iterable[Tuple[datetime, Task]] = []
         self._schedule()
 
     def _schedule(self):
         self._scheduled_tasks = list(sorted([(scheduled_datetime, task)
-                                             for task in self._tasks
+                                             for task in self._tasks.values()
                                              for scheduled_datetime in task.refresh_schedule()]))
 
     def _process_before(self, target_time: datetime, callback: Callable):
@@ -22,16 +21,22 @@ class TaskScheduler(TaskPersistence):
             if st[0] <= target_time:
                 callback(st[1])
 
-    def create(self, task):
-        super().create(task)
+    def create(self, task_def):
+        t = Task(**task_def)
+        t.create()
+        self._tasks[t.idx] = t
         self._schedule()
 
-    def update(self, task_id, task):
-        super().update(task_id, task)
+    def update(self, task_id, task_def):
+        t = self._tasks[task_id]
+        for k, v in task_def.items():
+            setattr(t, k, v)
+        t.update()
         self._schedule()
 
     def delete(self, task_id):
-        super().create(task_id)
+        Task.delete(task_id)
+        del self._tasks[task_id]
         self._schedule()
 
 
